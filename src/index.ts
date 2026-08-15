@@ -21,12 +21,14 @@ https://v.douyin.com/i5cseJ9a/ 10/23 r@E.uF nQX:/
 
 export interface Config {
   apiHost: string,
-  maxDuration: string
+  maxDuration: string,
+  forward: boolean
 }
 
 export const Config = Schema.object({
   apiHost: Schema.string().default('http://192.168.2.167:16252').description('填写你的API前缀'),
   maxDuration: Schema.string().default('90').description('允许下载的最大视频长度(秒)，否则仅发送预览图，避免bot卡住'),
+  forward: Schema.boolean().default(false).description('以合并消息发送解析内容（仅支持 OneBot 适配器,其它平台开启不生效）'),
 })
 
 export function apply(ctx: Context, config: Config) {
@@ -55,40 +57,49 @@ export function apply(ctx: Context, config: Config) {
       } = response;
 
       const isTypeImage = image_data && Object.keys(image_data).length > 0;
-      await session.send('抖音解析：\n' + desc);
+
+      // 按发送顺序收集解析内容
+      const parts: (string | h)[] = ['抖音解析：\n' + desc];
+
       if (isTypeImage) {
-        // 下载图片
-        const {
-          no_watermark_image_list
-        } = image_data;
-        if (no_watermark_image_list.length > 3) {
-          const forwardMessages = await Promise.all(no_watermark_image_list.map(async (item) => {
-            return h('img', { src: item })
-          }));
-          const forwardMessage = h('message', { forward: true, children: forwardMessages });
-          await session.send(forwardMessage);
-        } else {
-          no_watermark_image_list.forEach(async item => {
-            await session.send(h('img', { src: item }))
-          });
+        // 图集：每张图作为一个片段
+        for (const item of image_data.no_watermark_image_list) {
+          parts.push(h('img', { src: item }));
         }
       } else {
         // 下载视频
-        const videoDuration = music && music.duration
+        const videoDuration = music && music.duration;
         if (videoDuration > config.maxDuration) {
-          // 发送预览图
+          // 视频过长，仅发送预览图
           const {
             data: {
               cover_data: coverData
             }
           } = response;
-          await session.send('视频过长~ 请打开抖音客户端查看');
-          await session.send(h('img', { src: coverData?.dynamic_cover?.url_list[0] }))
+          parts.push('视频过长~ 请打开抖音客户端查看');
+          parts.push(h('img', { src: coverData?.dynamic_cover?.url_list[0] }));
         } else {
           const videoBuffer = await ctx.http.get<ArrayBuffer>(config.apiHost + '/api/download?url=' + url + '&prefix=true&with_watermark=true', {
             responseType: 'arraybuffer',
           });
-          session.send(h.video(videoBuffer, 'video/mp4'))
+          parts.push(h.video(videoBuffer, 'video/mp4'));
+        }
+      }
+
+      if (config.forward && session.platform === 'onebot') {
+        // OneBot 下以合并转发消息发送全部内容
+        await session.send(h('message', {
+          forward: true,
+          children: parts.map(part => h('message', part)),
+        }));
+      } else if (isTypeImage && image_data.no_watermark_image_list.length > 3) {
+        // 保留原有行为：图集超过 3 张时合并为转发消息
+        await session.send(parts[0]);
+        await session.send(h('message', { forward: true, children: parts.slice(1) }));
+      } else {
+        // 逐条发送
+        for (const part of parts) {
+          await session.send(part);
         }
       }
     } catch(err) {
