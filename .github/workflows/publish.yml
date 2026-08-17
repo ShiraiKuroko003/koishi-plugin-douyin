@@ -5,10 +5,18 @@ on:
     branches:
       - main
 
+# 最小权限：只需要读取代码，不需要写入
+permissions:
+  contents: read
+
+# 防止连续 push 导致并行发布冲突
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 jobs:
   publish:
-    # 避免在 fork 的仓库中运行（fork 通常没有 NPM_TOKEN）
-    if: github.repository == 'tediorelee/koishi-plugin-douyin'
+    # 只在原仓库运行，fork 通常没有 NPM_TOKEN 密钥
+    if: !github.event.repository.fork
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
