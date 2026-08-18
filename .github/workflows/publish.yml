@@ -5,7 +5,7 @@ on:
     branches:
       - main
 
-# 最小权限：只需要读取代码，不需要写入
+
 permissions:
   contents: read
 
@@ -15,8 +15,8 @@ concurrency:
 
 jobs:
   publish:
-    # 只在原仓库运行，fork 通常没有 NPM_TOKEN 密钥
-    if: !github.event.repository.fork
+    # 只在原仓库运行
+    if: ${{ !github.event.repository.fork }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
