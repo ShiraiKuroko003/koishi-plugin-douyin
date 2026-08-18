@@ -1,0 +1,45 @@
+name: Publish to npm
+
+on:
+  push:
+    branches:
+      - main
+
+# 最小权限：只需要读取代码，不需要写入
+permissions:
+  contents: read
+
+# 防止连续 push 导致并行发布冲突
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  publish:
+    # 只在原仓库运行，fork 通常没有 NPM_TOKEN 密钥
+    if: !github.event.repository.fork
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Check if version needs publishing
+        run: |
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          echo "Local version: $LOCAL_VERSION"
+
+          # 获取 npm 上最新版本号
+          NPM_VERSION=$(npm view "${{ github.event.repository.name }}" version 2>/dev/null || echo "none")
+          echo "npm latest version: $NPM_VERSION"
+
+          echo "local_version=$LOCAL_VERSION" >> $GITHUB_ENV
+          echo "npm_version=$NPM_VERSION" >> $GITHUB_ENV
+
+      - name: Publish to npm
+        if: env.local_version != env.npm_version
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
