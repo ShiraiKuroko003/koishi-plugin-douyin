@@ -26,7 +26,15 @@ jobs:
           node-version: 20
 
       - name: Ensure recent npm (Trusted Publishing 需要 ≥11.5.1)
-        run: npm install -g npm@latest
+        run: |
+          CURRENT_NPM=$(npm --version)
+          echo "Current npm version: $CURRENT_NPM"
+          if [ "$(echo "$CURRENT_NPM < 11.5.1" | bc -l)" = "1" ]; then
+            echo "npm $CURRENT_NPM 版本过低，将使用 npx 运行最新版 npm"
+            echo "USE_NPX=true" >> $GITHUB_ENV
+          else
+            echo "USE_NPX=false" >> $GITHUB_ENV
+          fi
 
       - name: Check if version needs publishing
         run: |
@@ -42,4 +50,9 @@ jobs:
 
       - name: Publish to npm
         if: env.local_version != env.npm_version
-        run: npm publish --access public
+        run: |
+          if [ "$USE_NPX" = "true" ]; then
+            npx npm@latest publish --access public
+          else
+            npm publish --access public
+          fi
