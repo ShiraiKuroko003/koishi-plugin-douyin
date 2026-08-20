@@ -1,14 +1,10 @@
-name: Publish
+name: Publish (fork test)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   publish_npm:
-    # 只在原仓库执行
-    if: ${{ github.repository == 'tediorelee/koishi-plugin-douyin' && !github.event.repository.fork }}
     permissions:
       id-token: write
       contents: read
