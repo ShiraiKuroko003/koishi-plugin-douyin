@@ -14,28 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    if: ${{ !github.event.repository.fork }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          registry-url: https://registry.npmjs.org
-
-      - name: Check if version needs publishing
-        run: |
-          LOCAL_VERSION=$(node -p "require('./package.json').version")
-          echo "Local version: $LOCAL_VERSION"
-
-          NPM_VERSION=$(npm view "${{ github.event.repository.name }}" version 2>/dev/null || echo "none")
-          echo "npm latest version: $NPM_VERSION"
-
-          echo "local_version=$LOCAL_VERSION" >> $GITHUB_ENV
-          echo "npm_version=$NPM_VERSION" >> $GITHUB_ENV
-
-      - name: Publish to npm
-        if: env.local_version != env.npm_version
-        run: npm publish --access public
+  publish_npm:
+    permissions:
+      id-token: write
+      contents: read
+    uses: koikirin/buildplate/.github/workflows/publish_npm.buildplate.yml@v1
