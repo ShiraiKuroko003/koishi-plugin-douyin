@@ -1,20 +1,14 @@
-name: Publish to npm
+name: Publish
 
 on:
   push:
     branches:
       - main
 
-permissions:
-  contents: read
-  id-token: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   publish_npm:
+    # 只在原仓库执行
+    if: ${{ github.repository == 'tediorelee/koishi-plugin-douyin' && !github.event.repository.fork }}
     permissions:
       id-token: write
       contents: read
