@@ -1,10 +1,17 @@
-name: Publish (fork test)
+name: Publish
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish_npm:
+    if: ${{ github.repository == 'tediorelee/koishi-plugin-douyin' && !github.event.repository.fork }}
     permissions:
       id-token: write
       contents: read
